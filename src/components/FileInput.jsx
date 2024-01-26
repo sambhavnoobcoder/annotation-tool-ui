@@ -10,7 +10,6 @@ function FileInput() {
     const file = event.target.files[0];
     setSelectedFile(file);
 
-    // Display the selected image
     const reader = new FileReader();
     reader.onloadend = () => {
       setSelectedImageSrc(reader.result);
@@ -23,19 +22,17 @@ function FileInput() {
       const fileReader = new FileReader();
       fileReader.onloadend = async () => {
         const imageBase64 = fileReader.result.split(',')[1];
-
-        // Convert base64 to bytes
         const imageBytes = new Uint8Array(atob(imageBase64).split('').map(char => char.charCodeAt(0)));
 
-        // Send the image data to the backend as bytes
-        const response = await axios.post('http://127.0.0.1:5000/process_image', {
-          image_data: imageBytes,
+        const response = await axios.post('http://127.0.0.1:5000/process_image', imageBytes, {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+          },
         });
 
         console.log('Image processed successfully.');
         console.log(response.data);
 
-        // Display the annotated image
         setAnnotatedImageSrc(response.data.annotated_image_src);
       };
 
@@ -52,17 +49,17 @@ function FileInput() {
       <input type="file" onChange={handleFileChange} />
       <button onClick={processImage}>Process Image</button>
 
+      {annotatedImageSrc && (
+        <div>
+          <h2>Annotated Image</h2>
+          <img src={`http://127.0.0.1:5000/get_annotated_image/${annotatedImageSrc}`} alt="Annotated" style={{ maxWidth: '100%' }} />
+        </div>
+      )}
+
       {selectedImageSrc && (
         <div>
           <h2>Selected Image</h2>
           <img src={selectedImageSrc} alt="Selected" style={{ maxWidth: '100%' }} />
-        </div>
-      )}
-
-      {annotatedImageSrc && (
-        <div>
-          <h2>Annotated Image</h2>
-          <img src={annotatedImageSrc} alt="Annotated" style={{ maxWidth: '100%' }} />
         </div>
       )}
     </div>

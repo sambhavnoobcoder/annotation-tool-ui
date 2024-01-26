@@ -1,12 +1,18 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import cv2
 import os
+import uuid
 from ultralytics import YOLO
 import numpy as np
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Set the output directory for annotated images
+script_dir = os.path.dirname(os.path.realpath(__file__))
+output_directory = os.path.join(script_dir, 'output_folder')
+os.makedirs(output_directory, exist_ok=True)
 
 def yolo_predict(image, model):
     conf_thresh = 0.25
@@ -21,11 +27,9 @@ def yolo_predict(image, model):
         boxes = result.boxes.cpu().numpy()
 
         for box in boxes:
-            # Extract predictions as floats
             x1, y1, x2, y2 = box.xyxy[0]
             label = box.cls
 
-            # Convert to ints
             x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
             label = int(label)
 
@@ -37,14 +41,7 @@ def yolo_predict(image, model):
 @app.route('/process_image', methods=['POST'])
 def process_image():
     try:
-        # Get the image data as bytes
-        image_data_bytes = request.json['image_data']
-
-        output_directory = 'path_to_output_directory'
-        os.makedirs(output_directory, exist_ok=True)
-       
-       # Get the directory of the current script
-        script_dir = os.path.dirname(os.path.realpath(__file__))
+        image_data_bytes = request.data
 
         # Construct the full path to 'best.pt'
         yolo_model_path = os.path.join(script_dir, 'best.pt')
@@ -59,8 +56,10 @@ def process_image():
         # Process image
         rectangles, labels = yolo_predict(decoded_image, model)
 
-        # Display or save the annotated image
-        annotated_image_path = os.path.join(output_directory, "annotated_image.jpg")
+        # Save the annotated image with a unique filename
+        annotated_image_filename = f"annotated_image_{uuid.uuid4().hex}.jpg"
+        annotated_image_path = os.path.join(output_directory, annotated_image_filename)
+
         for rect in rectangles:
             x1, y1, x2, y2, label = map(int, rect)
             cv2.rectangle(decoded_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -68,9 +67,15 @@ def process_image():
 
         cv2.imwrite(annotated_image_path, decoded_image)
 
-        return jsonify({'status': 'success', 'annotated_image_src': annotated_image_path})
+        # Return the path to the annotated image
+        return jsonify({'status': 'success', 'annotated_image_src': annotated_image_filename})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
+
+# Route to serve the annotated image
+@app.route('/get_annotated_image/<filename>')
+def get_annotated_image(filename):
+    return send_file(os.path.join(output_directory, filename), mimetype='image/jpeg')
 
 if __name__ == '__main__':
     app.run(debug=True)
