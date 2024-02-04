@@ -1,67 +1,82 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import ReactImageAnnotate from "react-image-annotate"
 
 function FileInput() {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [selectedImageSrc, setSelectedImageSrc] = useState(null);
-  const [annotatedImageSrc, setAnnotatedImageSrc] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [annotatedImageSrcs, setAnnotatedImageSrcs] = useState([]);
 
   const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    setSelectedFile(file);
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setSelectedImageSrc(reader.result);
-    };
-    reader.readAsDataURL(file);
+    const files = event.target.files;
+    setSelectedFiles([...selectedFiles, ...files]);
   };
 
-  const processImage = async () => {
+  const processImages = async () => {
     try {
-      const fileReader = new FileReader();
-      fileReader.onloadend = async () => {
-        const imageBase64 = fileReader.result.split(',')[1];
-        const imageBytes = new Uint8Array(atob(imageBase64).split('').map(char => char.charCodeAt(0)));
+      const annotations = [];
 
-        const response = await axios.post('http://127.0.0.1:5000/process_image', imageBytes, {
-          headers: {
-            'Content-Type': 'application/octet-stream',
-          },
-        });
+      for (const file of selectedFiles) {
+        const fileReader = new FileReader();
+        fileReader.onloadend = async () => {
+          const imageBase64 = fileReader.result.split(',')[1];
+          const imageBytes = new Uint8Array(atob(imageBase64).split('').map(char => char.charCodeAt(0)));
 
-        console.log('Image processed successfully.');
-        console.log(response.data);
+          const response = await axios.post('http://127.0.0.1:5000/process_image', imageBytes, {
+            headers: {
+              'Content-Type': 'application/octet-stream',
+            },
+          });
 
-        setAnnotatedImageSrc(response.data.annotated_image_src);
-      };
+          console.log(`Image ${file.name} processed successfully.`);
+          console.log(response.data);
 
-      if (selectedFile) {
-        fileReader.readAsDataURL(selectedFile);
+          annotations.push({
+            name: file.name,
+            annotatedImageSrc: response.data.annotated_image_src
+          });
+
+          if (annotations.length === selectedFiles.length) {
+            setAnnotatedImageSrcs(annotations);
+          }
+        };
+
+        fileReader.readAsDataURL(file);
       }
     } catch (error) {
-      console.error('Error processing image:', error);
+      console.error('Error processing images:', error);
     }
   };
 
   return (
     <div>
-      <input type="file" onChange={handleFileChange} />
-      <button onClick={processImage}>Process Image</button>
+      <input type="file" onChange={handleFileChange} multiple />
+      <button onClick={processImages}>Process Images</button>
 
-      {annotatedImageSrc && (
-        <div>
-          <h2>Annotated Image</h2>
-          <img src={`http://127.0.0.1:5000/get_annotated_image/${annotatedImageSrc}`} alt="Annotated" style={{ maxWidth: '100%' }} />
+      {annotatedImageSrcs.map(({ name, annotatedImageSrc }, index) => (
+        <div key={index}>
+          <h2>{`Annotated Image - ${name}`}</h2>
+          <img src={`http://127.0.0.1:5000/get_annotated_image/${annotatedImageSrc}`} alt={`Annotated ${name}`} style={{ maxWidth: '100%' }} />
         </div>
-      )}
+      ))}
 
-      {selectedImageSrc && (
-        <div>
-          <h2>Selected Image</h2>
-          <img src={selectedImageSrc} alt="Selected" style={{ maxWidth: '100%' }} />
+      {selectedFiles.map((file, index) => (
+        <div key={index}>
+          <h2>{`Selected Image - ${file.name}`}</h2>
+          <img src={URL.createObjectURL(file)} alt={`Selected ${file.name}`} style={{ maxWidth: '100%' }} />
+          <ReactImageAnnotate
+            labelImages
+            regionClsList={["Alpha", "Beta", "Charlie", "Delta"]}
+            regionTagList={["tag1", "tag2", "tag3"]}
+            images={[
+              {
+                src: URL.createObjectURL(file),
+                name: file.name,
+                regions: []
+              }
+            ]}
+          />
         </div>
-      )}
+      ))}
     </div>
   );
 }
