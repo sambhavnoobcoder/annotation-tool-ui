@@ -9,10 +9,12 @@ import numpy as np
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Set the output directory for annotated images
+# Set the output directory for annotated images and YOLO annotations
 script_dir = os.path.dirname(os.path.realpath(__file__))
 output_directory = os.path.join(script_dir, 'output_folder')
+annotations_directory = os.path.join(script_dir, 'annotations_folder')
 os.makedirs(output_directory, exist_ok=True)
+os.makedirs(annotations_directory, exist_ok=True)
 
 def yolo_predict(image, model):
     conf_thresh = 0.25
@@ -60,6 +62,21 @@ def process_image():
         annotated_image_filename = f"annotated_image_{uuid.uuid4().hex}.jpg"
         annotated_image_path = os.path.join(output_directory, annotated_image_filename)
 
+        # Save YOLO format annotations to a text file in the new folder
+        yolo_annotations_filename = f"annotations_{uuid.uuid4().hex}.txt"
+        yolo_annotations_path = os.path.join(annotations_directory, yolo_annotations_filename)
+
+        with open(yolo_annotations_path, 'w') as f:
+            for rect in rectangles:
+                x1, y1, x2, y2, label = map(int, rect)
+                normalized_x = (x1 + x2) / (2 * decoded_image.shape[1])
+                normalized_y = (y1 + y2) / (2 * decoded_image.shape[0])
+                normalized_width = (x2 - x1) / decoded_image.shape[1]
+                normalized_height = (y2 - y1) / decoded_image.shape[0]
+
+                line = f"{label} {normalized_x} {normalized_y} {normalized_width} {normalized_height}\n"
+                f.write(line)
+
         for rect in rectangles:
             x1, y1, x2, y2, label = map(int, rect)
             cv2.rectangle(decoded_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -67,8 +84,12 @@ def process_image():
 
         cv2.imwrite(annotated_image_path, decoded_image)
 
-        # Return the path to the annotated image
-        return jsonify({'status': 'success', 'annotated_image_src': annotated_image_filename})
+        # Return the paths to the annotated image and YOLO annotations
+        return jsonify({
+            'status': 'success',
+            'annotated_image_src': annotated_image_filename,
+            'yolo_annotations_src': os.path.join('annotations_folder', yolo_annotations_filename)
+        })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
@@ -76,6 +97,11 @@ def process_image():
 @app.route('/get_annotated_image/<filename>')
 def get_annotated_image(filename):
     return send_file(os.path.join(output_directory, filename), mimetype='image/jpeg')
+
+# Route to serve the YOLO annotations
+@app.route('/get_yolo_annotations/<filename>')
+def get_yolo_annotations(filename):
+    return send_file(os.path.join(annotations_directory, filename), mimetype='text/plain')
 
 if __name__ == '__main__':
     app.run(debug=True)
