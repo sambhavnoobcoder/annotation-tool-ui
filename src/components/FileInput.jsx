@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import ReactImageAnnotate from "react-image-annotate"
+import ReactImageAnnotate from 'react-image-annotate';
 
 function FileInput() {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -19,7 +19,7 @@ function FileInput() {
         const fileReader = new FileReader();
         fileReader.onloadend = async () => {
           const imageBase64 = fileReader.result.split(',')[1];
-          const imageBytes = new Uint8Array(atob(imageBase64).split('').map(char => char.charCodeAt(0)));
+          const imageBytes = new Uint8Array(atob(imageBase64).split('').map((char) => char.charCodeAt(0)));
 
           const response = await axios.post('http://127.0.0.1:5000/process_image', imageBytes, {
             headers: {
@@ -32,7 +32,8 @@ function FileInput() {
 
           annotations.push({
             name: file.name,
-            annotatedImageSrc: response.data.annotated_image_src
+            annotatedImageSrc: response.data.annotated_image_src,
+            annotations: response.data.annotations,
           });
 
           if (annotations.length === selectedFiles.length) {
@@ -46,6 +47,41 @@ function FileInput() {
       console.error('Error processing images:', error);
     }
   };
+
+  const handleImageAnnotateExit = async (data) => {
+    const selectedImageIndex = data.selectedImage;
+    const annotations = data.images[selectedImageIndex].regions;
+  
+    const imageFileName = selectedFiles[selectedImageIndex].name;
+  
+    try {
+      const annotationsContent = annotations
+        .map((region) => {
+          const x = region.x;
+          const y = region.y;
+          const width = region.w;
+          const height = region.h;
+  
+          // const normalizedX = x / data.images[selectedImageIndex].pixelSize.w;
+          // const normalizedY = y / data.images[selectedImageIndex].pixelSize.h;
+          // const normalizedWidth = width / data.images[selectedImageIndex].pixelSize.w;
+          // const normalizedHeight = height / data.images[selectedImageIndex].pixelSize.h;
+  
+          return `${region.cls} ${x} ${y} ${width} ${height}`;
+        })
+        .join('\n');
+  
+      const response = await axios.post('http://127.0.0.1:5000/save_annotations', {
+        imageFileName,
+        annotationsContent,
+      });
+  
+      console.log('Annotations saved successfully:', response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
 
   return (
     <div>
@@ -65,14 +101,15 @@ function FileInput() {
           <img src={URL.createObjectURL(file)} alt={`Selected ${file.name}`} style={{ maxWidth: '100%' }} />
           <ReactImageAnnotate
             labelImages
-            regionClsList={["Alpha", "Beta", "Charlie", "Delta"]}
-            regionTagList={["tag1", "tag2", "tag3"]}
+            regionClsList={['Alpha', 'Beta', 'Charlie', 'Delta']}
+            regionTagList={['tag1', 'tag2', 'tag3']}
+            onExit={(data) => handleImageAnnotateExit(data)}
             images={[
               {
                 src: URL.createObjectURL(file),
                 name: file.name,
-                regions: []
-              }
+                regions: [],
+              },
             ]}
           />
         </div>

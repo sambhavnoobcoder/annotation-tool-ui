@@ -93,6 +93,28 @@ def process_image():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+@app.route('/save_annotations', methods=['POST'])
+def save_annotations():
+    try:
+        data = request.json
+        image_file_name = data['imageFileName']
+        annotations_content = data['annotationsContent']
+
+        # Save the annotations to a text file in the 'manual-annotations' folder
+        annotations_folder = os.path.join(script_dir, 'manual-annotations')
+        os.makedirs(annotations_folder, exist_ok=True)
+
+        annotations_file_name = f"{image_file_name.split('.')[0]}_annotations.txt"
+        annotations_file_path = os.path.join(annotations_folder, annotations_file_name)
+
+        with open(annotations_file_path, 'w') as f:
+            f.write(annotations_content)
+
+        return jsonify({'status': 'success', 'message': 'Annotations saved successfully'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+    
 # Route to serve the annotated image
 @app.route('/get_annotated_image/<filename>')
 def get_annotated_image(filename):
