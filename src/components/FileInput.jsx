@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import ReactImageAnnotate from 'react-image-annotate';
+import Carousel from './Carousel';
 
 function FileInput() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [annotatedImageSrcs, setAnnotatedImageSrcs] = useState([]);
-  const [manuallyAnnotated, setmanuallyAnnotated] = useState(false);
+  const [manuallyAnnotated, setManuallyAnnotated] = useState(false);
 
   const handleFileChange = (event) => {
     const files = event.target.files;
@@ -71,75 +72,93 @@ function FileInput() {
         imageFileName,
         annotationsContent,
       });
-      setmanuallyAnnotated(true)
+      setManuallyAnnotated(true);
       
       console.log('Annotations saved successfully:', response.data);
     } catch (error) {
       console.log(error);
-      setmanuallyAnnotated(false)
+      setManuallyAnnotated(false);
     }
   };
 
-  console.log(manuallyAnnotated)
+  console.log(manuallyAnnotated);
 
   return (
-    <>
+     <>
       <h1 className='text-3xl text-center font-semibold mt-8'>ByteLearn Image Annotator</h1>
     
       <div className='mt-8'>
-        {annotatedImageSrcs.length==0 && <div className="container">
-          <div className="card">
-            <h3>Upload Files</h3>
-            <div className="drop_box">
-              <header>
-                <h4>Select File here</h4>
-              </header>
-              <p>Files Supported: JPG, JPEG</p>
-              <input type="file" accept=".jpg, .jpeg" id="fileID" onChange={handleFileChange} multiple></input>
-              <button className="btn rounded-md z-10" onClick={selectedFiles.length !== 0 ? processImages : () => document.getElementById('fileID').click()}>
-                {selectedFiles.length !== 0 ? 'Process Images' : 'Upload Images'}
-              </button>
+        
+        {annotatedImageSrcs.length === 0 && (
+          <div className="container">
+            <div className="card">
+              <h3>Upload Files</h3>
+              <div className="drop_box">
+                <header>
+                  <h4>{selectedFiles.length !== 0 ? `${selectedFiles.length} selected files` : 'Select File here'}</h4>
+                </header>
+                <p>Files Supported: JPG, JPEG</p>
+                <input type="file" accept=".jpg, .jpeg" id="fileID" onChange={handleFileChange} multiple></input>
+                <button className="btn rounded-md z-10" onClick={selectedFiles.length !== 0 ? processImages : () => document.getElementById('fileID').click()}>
+                  {selectedFiles.length !== 0 ? 'Process Images' : 'Upload Images'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>}
+        )}
 
-        {annotatedImageSrcs.map(({ name, annotatedImageSrc }, index) => (
-          <div key={index} className='text-center'>
+        {annotatedImageSrcs.length !== 0 && (
+          <div className='text-center '>
             <div className='font-semibold text-xl'> <h2>{`--Annotated Image--`}</h2></div>
-            <img className='mx-auto mt-4' src={`http://127.0.0.1:5000/get_annotated_image/${annotatedImageSrc}`} alt={`Annotated ${name}`} />
+            <div className='flex justify-center items-center'>
+              <div className='max-w-lg'>
+                <Carousel>
+                  {annotatedImageSrcs.map(({ name, annotatedImageSrc }) => (
+                    <img key={name} src={`http://127.0.0.1:5000/get_annotated_image/${annotatedImageSrc}`} alt={`Annotated ${name}`} />
+                  ))}
+                </Carousel>
+              </div>
+            </div>
           </div>
-        ))}
-        {/* <div className='line'></div> */}
-       {annotatedImageSrcs.length!=0 && <div className='w-full h-1 bg-black my-12 rounded-md '/>}
+        )}
 
-        {annotatedImageSrcs.length!=0 && selectedFiles.map((file, index) => (
-          <div key={index}>
-            {/* <div className='label-selected-image'> <h2>{`Selected Image - ${file.name}`}</h2></div>
-            <h4>{"the below window is is the annotation window facilitating the manual annotations in the image. Here's a brief overview of the features facilitated by the same :" }</h4> */}
+        {annotatedImageSrcs.length !== 0 && <div className='w-full h-1 bg-black my-12 rounded-md' />}
+
+        {annotatedImageSrcs.length !== 0 && (
+          <div>
             <div className='text-center text-xl font-semibold'>
-            <p className='text-2xl'>Didn't like the annotation ?</p>
-            <p className='my-4'>Annotate Here Manually👇</p>
+              <p className='text-2xl'>Didn&apos;t like the annotation ?</p>
+              <p className='my-4'>Annotate Here Manually👇</p>
             </div>
-            <div className='w-3/4 mx-auto'>
-            <ReactImageAnnotate
-              labelImages
-              regionClsList={['Question', 'Figure']}
-              regionTagList={['tag1', 'tag2', 'tag3']}
-              onExit={(data) => handleImageAnnotateExit(data)}
-              images={[
-                {
-                  src: URL.createObjectURL(file),
-                  name: file.name,
-                  regions: [],
-                },
-              ]}
-            />
-            {manuallyAnnotated && <p className='my-4 text-xl fonti-semibold'>Find the file in the Downloads/manual-annotaions</p>}
+
+            <div className='flex justify-center items-center'>
+              <div className='max-w-3xl'>
+                <Carousel>
+                  {selectedFiles.map((file, index) => (
+                    <React.Fragment key={index}>
+                      <ReactImageAnnotate
+                        labelImages
+                        regionClsList={['Question', 'Figure']}
+                        regionTagList={['tag1', 'tag2', 'tag3']}
+                        onExit={(data) => handleImageAnnotateExit(data)}
+                        images={[
+                          {
+                            src: URL.createObjectURL(file),
+                            name: file.name,
+                            regions: [],
+                          },
+                        ]}
+                      />
+                    </React.Fragment>
+                  ))}
+                </Carousel>
+              </div>
+              {manuallyAnnotated && <p className='my-4 text-xl font-semibold'>Find the file in the Downloads/manual-annotaions</p>}
             </div>
           </div>
-        ))}
-      </div>
-    </>
+        )}
+        </div>
+      </>
   );
 }
 
