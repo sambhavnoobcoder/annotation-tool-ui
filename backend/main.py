@@ -100,8 +100,11 @@ def save_annotations():
         image_file_name = data['imageFileName']
         annotations_content = data['annotationsContent']
 
-        # Save the annotations to a text file in the 'manual-annotations' folder
-        annotations_folder = os.path.join(script_dir, 'manual-annotations')
+        # Get path to user's downloads folder
+        downloads_folder = os.path.expanduser("~/Downloads")
+
+        # Save the annotations to a text file in the 'manual-annotations' folder in the downloads folder
+        annotations_folder = os.path.join(downloads_folder, 'manual-annotations')
         os.makedirs(annotations_folder, exist_ok=True)
 
         annotations_file_name = f"{image_file_name.split('.')[0]}_annotations.txt"
@@ -113,6 +116,7 @@ def save_annotations():
         return jsonify({'status': 'success', 'message': 'Annotations saved successfully'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
+
 
     
 # Route to serve the annotated image
