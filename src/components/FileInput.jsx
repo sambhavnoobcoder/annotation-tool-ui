@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import ReactImageAnnotate from 'react-image-annotate';
 import Carousel from './Carousel';
@@ -7,6 +7,7 @@ function FileInput() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [annotatedImageSrcs, setAnnotatedImageSrcs] = useState([]);
   const [manuallyAnnotated, setManuallyAnnotated] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const handleFileChange = (event) => {
     const files = event.target.files;
@@ -81,6 +82,19 @@ function FileInput() {
     }
   };
 
+  const handleNextImage = () => {
+    if (currentImageIndex < selectedFiles.length - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
+    }
+
+  };
+
+  const handlePrevImage = () => {
+    if (currentImageIndex > 0) {
+      setCurrentImageIndex(currentImageIndex - 1);
+    }
+  };
+
   console.log(manuallyAnnotated);
 
   return (
@@ -109,7 +123,7 @@ function FileInput() {
 
         {annotatedImageSrcs.length !== 0 && (
           <div className='text-center '>
-            <div className='font-semibold text-xl'> <h2>{`--Annotated Image--`}</h2></div>
+            <div className='font-semibold text-xl mb-4'> <h2>{`--Annotated Image--`}</h2></div>
             <div className='flex justify-center items-center'>
               <div className='max-w-lg'>
                 <Carousel>
@@ -129,31 +143,27 @@ function FileInput() {
             <div className='text-center text-xl font-semibold'>
               <p className='text-2xl'>Didn&apos;t like the annotation ?</p>
               <p className='my-4'>Annotate Here Manually👇</p>
+              {manuallyAnnotated && <p className='my-4 text-xl font-semibold'>--Find the file in the Downloads/manual-annotaions--</p>}
             </div>
 
             <div className='flex justify-center items-center'>
-              <div className='max-w-3xl'>
-                <Carousel>
-                  {selectedFiles.map((file, index) => (
-                    <React.Fragment key={index}>
+              <div className='w-full'>
                       <ReactImageAnnotate
                         labelImages
                         regionClsList={['Question', 'Figure']}
                         regionTagList={['tag1', 'tag2', 'tag3']}
                         onExit={(data) => handleImageAnnotateExit(data)}
-                        images={[
-                          {
-                            src: URL.createObjectURL(file),
-                            name: file.name,
-                            regions: [],
-                          },
-                        ]}
+                        onNextImage={handleNextImage}
+                        onPrevImage={handlePrevImage}
+                        selectedImage={currentImageIndex}
+                        images={selectedFiles.map((file) => ({
+                          src: URL.createObjectURL(file),
+                          name: file.name.length > 10 ? file.name.slice(0, 30) + '...' : file.name,
+                          regions: [],
+                        }))}
+                        
                       />
-                    </React.Fragment>
-                  ))}
-                </Carousel>
               </div>
-              {manuallyAnnotated && <p className='my-4 text-xl font-semibold'>Find the file in the Downloads/manual-annotaions</p>}
             </div>
           </div>
         )}
