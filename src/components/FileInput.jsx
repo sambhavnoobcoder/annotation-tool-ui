@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import ReactImageAnnotate from 'react-image-annotate';
 import Carousel from './Carousel';
@@ -148,6 +148,7 @@ function FileInput() {
             </div>
               <ReactImageAnnotate
                 labelImages
+                enabledTools={['create-box']}
                 regionClsList={['Question', 'Figure']}
                 regionTagList={['tag1', 'tag2', 'tag3']}
                 onExit={(data) => handleImageAnnotateExit(data)}
