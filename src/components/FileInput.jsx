@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import ReactImageAnnotate from 'react-image-annotate';
 import Carousel from './Carousel';
@@ -30,8 +30,8 @@ function FileInput() {
             },
           });
 
-          console.log(`Image ${file.name} processed successfully.`);
-          console.log(response.data);
+          // console.log(`Image ${file.name} processed successfully.`);
+          // console.log(response.data);
 
           annotations.push({
             name: file.name,
@@ -49,6 +49,7 @@ function FileInput() {
     } catch (error) {
       console.error('Error processing images:', error);
     }
+    
   };
 
   const handleImageAnnotateExit = async (data) => {
@@ -69,13 +70,13 @@ function FileInput() {
         })
         .join('\n');
   
-      const response = await axios.post('http://127.0.0.1:5000/save_annotations', {
+      await axios.post('http://127.0.0.1:5000/save_annotations', {
         imageFileName,
         annotationsContent,
       });
       setManuallyAnnotated(true);
       
-      console.log('Annotations saved successfully:', response.data);
+      // console.log('Annotations saved successfully:', response.data);
     } catch (error) {
       console.log(error);
       setManuallyAnnotated(false);
@@ -95,7 +96,7 @@ function FileInput() {
     }
   };
 
-  console.log(manuallyAnnotated);
+  // console.log(manuallyAnnotated);
 
   return (
      <>
@@ -145,26 +146,21 @@ function FileInput() {
               <p className='my-4'>Annotate Here Manually👇</p>
               {manuallyAnnotated && <p className='my-4 text-xl font-semibold'>--Find the file in the Downloads/manual-annotaions--</p>}
             </div>
-
-            <div className='flex justify-center items-center'>
-              <div className='w-full'>
-                      <ReactImageAnnotate
-                        labelImages
-                        regionClsList={['Question', 'Figure']}
-                        regionTagList={['tag1', 'tag2', 'tag3']}
-                        onExit={(data) => handleImageAnnotateExit(data)}
-                        onNextImage={handleNextImage}
-                        onPrevImage={handlePrevImage}
-                        selectedImage={currentImageIndex}
-                        images={selectedFiles.map((file) => ({
-                          src: URL.createObjectURL(file),
-                          name: file.name.length > 10 ? file.name.slice(0, 30) + '...' : file.name,
-                          regions: [],
-                        }))}
-                        
-                      />
-              </div>
-            </div>
+              <ReactImageAnnotate
+                labelImages
+                regionClsList={['Question', 'Figure']}
+                regionTagList={['tag1', 'tag2', 'tag3']}
+                onExit={(data) => handleImageAnnotateExit(data)}
+                onNextImage={handleNextImage}
+                onPrevImage={handlePrevImage}
+                selectedImage={currentImageIndex}
+                images={selectedFiles.map((file) => ({
+                  src: URL.createObjectURL(file),
+                  name: file.name.length > 10 ? file.name.slice(0, 30) + '...' : file.name,
+                  regions: [],
+                }))}
+                
+              />
           </div>
         )}
         </div>

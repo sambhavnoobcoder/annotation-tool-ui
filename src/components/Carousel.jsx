@@ -17,10 +17,10 @@ const Carousel = ({ children: slides, autoSlide = false, autoSlideInterval = 300
 
     return (
         <div className='overflow-hidden relative'>
-            <div className='relative flex transition-transform ease-out duration-500 z-10' style={{ transform: `translateX(-${curr * 100}%)` }}>
+            <div className='flex transition-transform ease-out duration-500' style={{ transform: `translateX(-${curr * 100}%)` }}>
                 {slides}
             </div>
-            <div style={{maxHeight : '10rem'}} className="absolute w-full top-1/2 -translate-y-1/2 left-0 flex items-center justify-between p-4 z-20">
+            <div className="absolute inset-0 flex items-center justify-between p-4">
                 <button onClick={prev} className='w-8 h-8 font-bold rounded-full shadow bg-black/80 text-white hover:bg-black'>
                     {/* <ChevronLeft /> */} ＜
                 </button>
