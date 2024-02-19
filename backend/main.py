@@ -5,6 +5,10 @@ import os
 import uuid
 from ultralytics import YOLO
 import numpy as np
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -140,4 +144,6 @@ def get_yolo_annotations(filename):
     return send_file(os.path.join(annotations_directory, filename), mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Accessing port number from environment variable
+    port_number = int(os.getenv("PORT", default=5000))
+    app.run(debug=True, port=port_number)
