@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import cv2
 import os
@@ -8,6 +8,18 @@ import numpy as np
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Get the absolute path to the 'dist' folder in the root directory
+dist_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist'))
+index_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist', 'index.html'))
+
+@app.route('/<path:path>')
+def send_dist(path):
+    return send_from_directory(dist_folder, path)
+
+@app.route('/')
+def send_index():
+    return send_file(index_file)
 
 # Set the output directory for annotated images and YOLO annotations
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -117,8 +129,6 @@ def save_annotations():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
-
-    
 # Route to serve the annotated image
 @app.route('/get_annotated_image/<filename>')
 def get_annotated_image(filename):
