@@ -5,10 +5,6 @@ import os
 import uuid
 from ultralytics import YOLO
 import numpy as np
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -28,7 +24,8 @@ def send_index():
 # Set the output directory for annotated images and YOLO annotations
 script_dir = os.path.dirname(os.path.realpath(__file__))
 output_directory = os.path.join(script_dir, 'output_folder')
-annotations_directory = os.path.join(script_dir, 'annotations_folder')
+downloads_directory = os.path.expanduser("~/Downloads")
+annotations_directory = os.path.join(downloads_directory, 'manual-annotations')
 os.makedirs(output_directory, exist_ok=True)
 os.makedirs(annotations_directory, exist_ok=True)
 
@@ -104,7 +101,7 @@ def process_image():
         return jsonify({
             'status': 'success',
             'annotated_image_src': annotated_image_filename,
-            'yolo_annotations_src': os.path.join('annotations_folder', yolo_annotations_filename)
+            'yolo_annotations_src': os.path.join('manual-annotations', yolo_annotations_filename)
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
@@ -116,15 +113,9 @@ def save_annotations():
         image_file_name = data['imageFileName']
         annotations_content = data['annotationsContent']
 
-        # Get path to user's downloads folder
-        downloads_folder = os.path.expanduser("~/Downloads")
-
         # Save the annotations to a text file in the 'manual-annotations' folder in the downloads folder
-        annotations_folder = os.path.join(downloads_folder, 'manual-annotations')
-        os.makedirs(annotations_folder, exist_ok=True)
-
         annotations_file_name = f"{image_file_name.split('.')[0]}_annotations.txt"
-        annotations_file_path = os.path.join(annotations_folder, annotations_file_name)
+        annotations_file_path = os.path.join(annotations_directory, annotations_file_name)
 
         with open(annotations_file_path, 'w') as f:
             f.write(annotations_content)
@@ -144,6 +135,4 @@ def get_yolo_annotations(filename):
     return send_file(os.path.join(annotations_directory, filename), mimetype='text/plain')
 
 if __name__ == '__main__':
-    # Accessing port number from environment variable
-    port_number = int(os.getenv("PORT", default=5000))
-    app.run(debug=True, port=port_number)
+    app.run(debug=True)
