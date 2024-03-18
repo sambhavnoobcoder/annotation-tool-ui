@@ -1,33 +1,39 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
-from flask_cors import CORS
 import cv2
 import os
 import uuid
 from ultralytics import YOLO
 import numpy as np
+import requests
+import json
+from flask_cors import CORS
+import base64
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
 # Get the absolute path to the 'dist' folder in the root directory
 dist_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist'))
 index_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist', 'index.html'))
+yc = None
 
-@app.route('/<path:path>')
-def send_dist(path):
-    return send_from_directory(dist_folder, path)
+# @app.route('/<path:path>')
+# def send_dist(path):
+#     return send_from_directory(dist_folder, path)
 
-@app.route('/')
-def send_index():
-    return send_file(index_file)
+# @app.route('/')
+# def send_index():
+#     return send_file(index_file)
 
 # Set the output directory for annotated images and YOLO annotations
 script_dir = os.path.dirname(os.path.realpath(__file__))
 output_directory = os.path.join(script_dir, 'output_folder')
 downloads_directory = os.path.expanduser("~/Downloads")
+
 annotations_directory = os.path.join(downloads_directory, 'manual-annotations')
 os.makedirs(output_directory, exist_ok=True)
 os.makedirs(annotations_directory, exist_ok=True)
+
 
 def yolo_predict(image, model):
     conf_thresh = 0.25
@@ -53,10 +59,27 @@ def yolo_predict(image, model):
 
     return predicted_rectangles, labels
 
+
+def upload_file(base64_encoded_data):
+    try:
+        url = "https://devyellowflowcore.bytelearn.ai/file-uploader"
+        payload = {
+            "image": f"data:image/png;base64,{base64_encoded_data.decode()}"
+        }
+        response = requests.post(url, json=payload)
+        return response.json()['image'] 
+    except Exception as e:
+        print('Uploader API exception:', str(e))
+        return None
+
+
 @app.route('/process_image', methods=['POST'])
 def process_image():
     try:
         image_data_bytes = request.data
+        # Generate a unique key and id for this request
+        unique_key = str(uuid.uuid4())
+        unique_id = str(uuid.uuid4())
 
         # Construct the full path to 'best.pt'
         yolo_model_path = os.path.join(script_dir, 'best.pt')
@@ -75,64 +98,71 @@ def process_image():
         annotated_image_filename = f"annotated_image_{uuid.uuid4().hex}.jpg"
         annotated_image_path = os.path.join(output_directory, annotated_image_filename)
 
-        # Save YOLO format annotations to a text file in the new folder
-        yolo_annotations_filename = f"annotations_{uuid.uuid4().hex}.txt"
-        yolo_annotations_path = os.path.join(annotations_directory, yolo_annotations_filename)
-
-        with open(yolo_annotations_path, 'w') as f:
-            for rect in rectangles:
-                x1, y1, x2, y2, label = map(int, rect)
-                normalized_x = (x1 + x2) / (2 * decoded_image.shape[1])
-                normalized_y = (y1 + y2) / (2 * decoded_image.shape[0])
-                normalized_width = (x2 - x1) / decoded_image.shape[1]
-                normalized_height = (y2 - y1) / decoded_image.shape[0]
-
-                line = f"{label} {normalized_x} {normalized_y} {normalized_width} {normalized_height}\n"
-                f.write(line)
-
+        # Prepare annotations data
+        annotations = []
         for rect in rectangles:
             x1, y1, x2, y2, label = map(int, rect)
+            annotations.append({
+                "x1": x1,
+                "y1": y1,
+                "x2": x2,
+                "y2": y2
+            })
             cv2.rectangle(decoded_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(decoded_image, f"Class {label}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
         cv2.imwrite(annotated_image_path, decoded_image)
 
-        # Return the paths to the annotated image and YOLO annotations
+        # Convert the processed image to base64
+        _, processed_image_encoded = cv2.imencode('.jpg', decoded_image)
+        processed_image_base64 = base64.b64encode(processed_image_encoded).decode()
+
+        # Upload annotated image to database and get the URL
+        annotated_image_url = upload_file(base64.b64encode(processed_image_encoded))
+        print(annotated_image_url)
+
+        # if not annotated_image_url:
+        #     raise Exception('Failed to upload annotated image')
+
+        # Prepare annotations data in the required format
+        annotations_data = {
+            "id": unique_id,
+            "annotation_file_url": annotated_image_url,
+            "tags": labels,
+            "annotations": annotations,
+        }
+
+        # Prepare payload for the request
+        payload = json.dumps({
+            "key": unique_key,
+            "data": annotations_data,
+            "source": "object_detection_annotations"
+        })
+
+        # Prepare headers for the request
+        headers = {
+            'Ignore-Auth': 'true',
+            'Content-Type': 'application/json'
+        }
+
+        # Send the request to the specified URL
+        response = requests.post("https://devb2cdatamanagement.bytelearn.ai/cache/set", headers=headers, data=payload)
+
+        # Check the response status
+        if response.status_code != 200:
+            raise Exception('Failed to save URL')
+
         return jsonify({
             'status': 'success',
             'annotated_image_src': annotated_image_filename,
-            'yolo_annotations_src': os.path.join('manual-annotations', yolo_annotations_filename)
+            'processed_image_base64': processed_image_base64,
+            'unique_key': unique_key,
+            'unique_id': unique_id,
+            # 'urlres' : annotated_image_url,
         })
+
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
-
-@app.route('/save_annotations', methods=['POST'])
-def save_annotations():
-    try:
-        data = request.json
-        image_file_name = data['imageFileName']
-        annotations_content = data['annotationsContent']
-
-        # Save the annotations to a text file in the 'manual-annotations' folder in the downloads folder
-        annotations_file_name = f"{image_file_name.split('.')[0]}_annotations.txt"
-        annotations_file_path = os.path.join(annotations_directory, annotations_file_name)
-
-        with open(annotations_file_path, 'w') as f:
-            f.write(annotations_content)
-
-        return jsonify({'status': 'success', 'message': 'Annotations saved successfully'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)})
-
-# Route to serve the annotated image
-@app.route('/get_annotated_image/<filename>')
-def get_annotated_image(filename):
-    return send_file(os.path.join(output_directory, filename), mimetype='image/jpeg')
-
-# Route to serve the YOLO annotations
-@app.route('/get_yolo_annotations/<filename>')
-def get_yolo_annotations(filename):
-    return send_file(os.path.join(annotations_directory, filename), mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True , port = 3600)

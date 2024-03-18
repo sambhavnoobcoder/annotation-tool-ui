@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import ReactImageAnnotate from 'react-image-annotate';
 import Carousel from './Carousel';
+import { sendRequest } from '../utils/api';
 
 function FileInput() {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -24,20 +25,34 @@ function FileInput() {
           const imageBase64 = fileReader.result.split(',')[1];
           const imageBytes = new Uint8Array(atob(imageBase64).split('').map((char) => char.charCodeAt(0)));
 
-          const response = await axios.post('http://127.0.0.1:5000/process_image', imageBytes, {
+          // const response = await sendRequest('POST', '/process_image', imageBytes, {
+          //   'Content-Type': 'application/octet-stream',
+          // })
+
+          const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/process_image`, imageBytes, {
             headers: {
               'Content-Type': 'application/octet-stream',
             },
           });
 
-          // console.log(`Image ${file.name} processed successfully.`);
-          // console.log(response.data);
+          console.log(`Image ${file.name} processed successfully.`);
+          console.log(response.data);
+          console.log(response.data.unique_key)
+          console.log(response.data.urlres)
+          if (response.data.annotated_image_src) {
+            const processedImageBase64 = response.data.processed_image_base64;
+                    const img = new Image();
+                    img.src = `data:image/jpeg;base64,${processedImageBase64}`;
+                    
+            annotations.push({
+              name: file.name,
+              annotatedImageSrc: response.data.annotated_image_src,
+              processedImage : img.src,
+              annotations: response.data.annotations,
+            });
+        }
 
-          annotations.push({
-            name: file.name,
-            annotatedImageSrc: response.data.annotated_image_src,
-            annotations: response.data.annotations,
-          });
+          
 
           if (annotations.length === selectedFiles.length) {
             setAnnotatedImageSrcs(annotations);
@@ -70,10 +85,7 @@ function FileInput() {
         })
         .join('\n');
   
-      await axios.post('http://127.0.0.1:5000/save_annotations', {
-        imageFileName,
-        annotationsContent,
-      });
+      await sendRequest('POST' , '/cache/set' , imageFileName, annotationsContent);
       setManuallyAnnotated(true);
       
       // console.log('Annotations saved successfully:', response.data);
@@ -128,8 +140,8 @@ function FileInput() {
             <div className='flex justify-center items-center'>
               <div className='max-w-lg'>
                 <Carousel>
-                  {annotatedImageSrcs.map(({ name, annotatedImageSrc }) => (
-                    <img key={name} src={`http://127.0.0.1:5000/get_annotated_image/${annotatedImageSrc}`} alt={`Annotated ${name}`} />
+                  {annotatedImageSrcs.map(({ name, processedImage }) => (
+                    <img key={name} src={processedImage} alt={`Annotated ${name}`} />
                   ))}
                 </Carousel>
               </div>
