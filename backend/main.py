@@ -12,19 +12,6 @@ import base64
 app = Flask(__name__)
 CORS(app)
 
-# Get the absolute path to the 'dist' folder in the root directory
-dist_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist'))
-index_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist', 'index.html'))
-yc = None
-
-# @app.route('/<path:path>')
-# def send_dist(path):
-#     return send_from_directory(dist_folder, path)
-
-# @app.route('/')
-# def send_index():
-#     return send_file(index_file)
-
 # Set the output directory for annotated images and YOLO annotations
 script_dir = os.path.dirname(os.path.realpath(__file__))
 output_directory = os.path.join(script_dir, 'output_folder')
@@ -99,15 +86,19 @@ def process_image():
         annotated_image_path = os.path.join(output_directory, annotated_image_filename)
 
         # Prepare annotations data
-        annotations = []
-        for rect in rectangles:
+        annotations_list = []
+        for rect, label in zip(rectangles, labels):
             x1, y1, x2, y2, label = map(int, rect)
-            annotations.append({
-                "x1": x1,
-                "y1": y1,
-                "x2": x2,
-                "y2": y2
-            })
+            annotation = {
+                "class": str(label),
+                "bb": {
+                    "x1": x1,
+                    "y1": y1,
+                    "x2": x2,
+                    "y2": y2
+                }
+            }
+            annotations_list.append(annotation)
             cv2.rectangle(decoded_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(decoded_image, f"Class {label}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
@@ -128,8 +119,7 @@ def process_image():
         annotations_data = {
             "id": unique_id,
             "annotation_file_url": annotated_image_url,
-            "tags": labels,
-            "annotations": annotations,
+            "annotations": annotations_list,
         }
 
         # Prepare payload for the request
