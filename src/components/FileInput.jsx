@@ -36,9 +36,8 @@ function FileInput() {
           });
 
           console.log(`Image ${file.name} processed successfully.`);
-          console.log(response.data);
           console.log(response.data.unique_key)
-          console.log(response.data.urlres)
+
           if (response.data.annotated_image_src) {
             const processedImageBase64 = response.data.processed_image_base64;
                     const img = new Image();

@@ -12,6 +12,18 @@ import base64
 app = Flask(__name__)
 CORS(app)
 
+# Get the absolute path to the 'dist' folder in the root directory
+dist_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist'))
+index_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dist', 'index.html'))
+
+@app.route('/<path:path>')
+def send_dist(path):
+    return send_from_directory(dist_folder, path)
+
+@app.route('/')
+def send_index():
+    return send_file(index_file)
+
 # Set the output directory for annotated images and YOLO annotations
 script_dir = os.path.dirname(os.path.realpath(__file__))
 output_directory = os.path.join(script_dir, 'output_folder')
@@ -109,7 +121,7 @@ def process_image():
         processed_image_base64 = base64.b64encode(processed_image_encoded).decode()
 
         # Upload annotated image to database and get the URL
-        annotated_image_url = upload_file(base64.b64encode(processed_image_encoded))
+        annotated_image_url = upload_file(base64.b64encode(image_data_bytes)) #pass in processed_image_encoded to save the annotated image url instead of original 
         print(annotated_image_url)
 
         # if not annotated_image_url:
@@ -118,7 +130,8 @@ def process_image():
         # Prepare annotations data in the required format
         annotations_data = {
             "id": unique_id,
-            "annotation_file_url": annotated_image_url,
+            # "annotation_file_url": annotated_image_url,
+            "image_url": annotated_image_url,
             "annotations": annotations_list,
         }
 
@@ -155,4 +168,4 @@ def process_image():
         return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True , port = 3600)
+    app.run(host='0.0.0.0', port=3600, debug=True)
