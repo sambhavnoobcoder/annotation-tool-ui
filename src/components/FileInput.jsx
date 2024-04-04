@@ -123,8 +123,8 @@ function FileInput() {
                 <header>
                   <h4>{selectedFiles.length !== 0 ? `${selectedFiles.length} selected files` : 'Select File here'}</h4>
                 </header>
-                <p>Files Supported: JPG, JPEG</p>
-                <input type="file" accept=".jpg, .jpeg" id="fileID" onChange={handleFileChange} multiple></input>
+                <p>Files Supported: JPG, JPEG, PNG</p>
+                <input type="file" accept=".jpg, .jpeg, .png" id="fileID" onChange={handleFileChange} multiple></input>
                 <button className="btn rounded-md z-10" onClick={selectedFiles.length !== 0 ? processImages : () => document.getElementById('fileID').click()}>
                   {selectedFiles.length !== 0 ? 'Process Images' : 'Upload Images'}
                 </button>
